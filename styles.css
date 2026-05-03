@@ -1,0 +1,383 @@
+:root {
+  color-scheme: dark;
+  --bg: #030403;
+  --panel: #0d1210;
+  --line: #1a6829;
+  --line-bright: #29e654;
+  --text: #effbf0;
+  --muted: #9db5a2;
+  --red: #ff1515;
+  --green: #24f52f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 126, 54, 0.22), transparent 24rem),
+    linear-gradient(180deg, #050705 0%, #020302 100%);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.app {
+  width: 100%;
+  min-height: 100svh;
+}
+
+.home-screen,
+.game-shell {
+  min-height: 100svh;
+  width: min(100%, 720px);
+  margin: 0 auto;
+}
+
+.home-screen {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.home-panel {
+  width: min(100%, 430px);
+  display: grid;
+  gap: 24px;
+  padding: 24px;
+  border: 1px solid rgba(61, 221, 89, 0.35);
+  border-radius: 8px;
+  background: rgba(12, 17, 15, 0.94);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
+}
+
+.brand {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 9vw, 3.2rem);
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.brand-orb,
+.status-orb,
+#turnOrb {
+  display: block;
+  border-radius: 999px;
+}
+
+.brand-orb {
+  width: 42px;
+  height: 42px;
+  animation: floatOrb 1.8s ease-in-out infinite;
+}
+
+.green-orb {
+  animation-delay: -0.9s;
+}
+
+.red-orb,
+.player-label.red .status-orb {
+  background: radial-gradient(circle at 44% 42%, #ff1f1f, #9a0000 72%, #260000 100%);
+}
+
+.green-orb,
+.player-label.green .status-orb {
+  background: radial-gradient(circle at 44% 42%, #29f637, #087a12 72%, #001f05 100%);
+}
+
+.fill-control {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.fill-control strong {
+  color: var(--text);
+  font-size: 1.35rem;
+}
+
+.fill-control input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--line-bright);
+}
+
+.play-button,
+.winner button {
+  min-height: 48px;
+  border: 1px solid rgba(83, 210, 105, 0.42);
+  border-radius: 8px;
+  color: var(--text);
+  background: #173922;
+  cursor: pointer;
+}
+
+.play-button {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.play-button:active,
+.winner button:active {
+  transform: translateY(1px);
+}
+
+.game-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+}
+
+.game-hud {
+  min-height: 66px;
+  display: grid;
+  grid-template-rows: 42px 10px;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(8, 12, 10, 0.74);
+}
+
+.hud-top {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr 50px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-label {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: clamp(0.88rem, 3.4vw, 1rem);
+}
+
+.player-label.green {
+  justify-content: flex-end;
+}
+
+.player-label strong {
+  font-size: clamp(1rem, 4vw, 1.25rem);
+}
+
+.player-label.red strong {
+  color: #ff4a4a;
+}
+
+.player-label.green strong {
+  color: #59ff66;
+}
+
+.status-orb {
+  width: 18px;
+  height: 18px;
+}
+
+.balance-track {
+  position: relative;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, rgba(255, 21, 21, 0.18), rgba(255, 255, 255, 0.12) 50%, rgba(36, 245, 47, 0.18)),
+    rgba(255, 255, 255, 0.08);
+}
+
+.balance-track span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  transition: width 220ms ease;
+}
+
+.red-fill {
+  left: 0;
+  border-radius: 999px 0 0 999px;
+  background: linear-gradient(90deg, #8f0000, #ff2626);
+}
+
+.green-fill {
+  right: 0;
+  background: linear-gradient(90deg, #28f637, #06790f);
+  border-radius: 0 999px 999px 0;
+}
+
+.turn-indicator {
+  height: 42px;
+  display: grid;
+  place-items: center;
+}
+
+#turnOrb {
+  width: 34px;
+  height: 34px;
+  background: radial-gradient(circle at 44% 42%, var(--turn-bright), var(--turn-color) 72%, #070707 100%);
+  box-shadow: 0 0 0 0 var(--turn-glow);
+  animation: turnPulse 1.05s ease-out infinite;
+}
+
+.board-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(46, 239, 89, 0.45);
+  border-radius: 8px;
+  background: #020302;
+  box-shadow:
+    inset 0 0 28px rgba(39, 239, 82, 0.08),
+    0 18px 50px rgba(0, 0, 0, 0.42);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.winner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(2, 3, 2, 0.68);
+  backdrop-filter: blur(4px);
+}
+
+.winner strong {
+  font-size: clamp(2rem, 11vw, 4rem);
+  text-shadow: 0 0 24px currentColor;
+}
+
+.winner button {
+  min-width: 180px;
+  padding: 0 16px;
+}
+
+@keyframes turnPulse {
+  0% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 var(--turn-glow);
+  }
+  70% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 14px rgba(255, 255, 255, 0);
+  }
+  100% {
+    transform: scale(0.92);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+@keyframes floatOrb {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (max-width: 430px) {
+  html,
+  body {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  .home-panel {
+    padding: 20px;
+  }
+
+  .brand {
+    grid-template-columns: 34px 1fr 34px;
+  }
+
+  .brand-orb {
+    width: 34px;
+    height: 34px;
+  }
+
+  .game-shell {
+    width: 100vw;
+    min-height: 100svh;
+    height: 100svh;
+    padding: 0;
+    gap: 0;
+  }
+
+  .game-hud {
+    min-height: 62px;
+    grid-template-rows: 38px 9px;
+    gap: 6px;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 0;
+    background: rgba(5, 8, 6, 0.92);
+  }
+
+  .hud-top {
+    grid-template-columns: 1fr 42px 1fr;
+    gap: 5px;
+  }
+
+  .player-label {
+    gap: 5px;
+  }
+
+  .status-orb {
+    width: 15px;
+    height: 15px;
+  }
+
+  #turnOrb {
+    width: 30px;
+    height: 30px;
+  }
+
+  .board-wrap {
+    border: 0;
+    border-radius: 0;
+    box-shadow: inset 0 0 30px rgba(39, 239, 82, 0.08);
+  }
+}

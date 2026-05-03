@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chain Reaction</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="home-screen" id="homeScreen" aria-label="Game setup">
+        <div class="home-panel">
+          <div class="brand">
+            <span class="brand-orb red-orb"></span>
+            <h1>Chain Reaction</h1>
+            <span class="brand-orb green-orb"></span>
+          </div>
+          <label class="fill-control">
+            <span>Random Fill</span>
+            <strong id="fillValue">25%</strong>
+            <input id="fillRange" type="range" min="0" max="80" step="5" value="25" />
+          </label>
+          <button class="play-button" id="playButton" type="button">Play</button>
+        </div>
+      </section>
+
+      <section class="game-shell" id="gameScreen" aria-label="Chain Reaction game" hidden>
+        <header class="game-hud" aria-label="Game status">
+          <div class="hud-top">
+            <div class="player-label red">
+              <span class="status-orb"></span>
+              <span>Red</span>
+              <strong id="redPercent">0%</strong>
+            </div>
+            <div class="turn-indicator" id="turnIndicator" aria-label="Current turn">
+              <span id="turnOrb"></span>
+            </div>
+            <div class="player-label green">
+              <strong id="greenPercent">0%</strong>
+              <span>Green</span>
+              <span class="status-orb"></span>
+            </div>
+          </div>
+          <div class="balance-track" aria-hidden="true">
+            <span class="red-fill" id="redBar"></span>
+            <span class="green-fill" id="greenBar"></span>
+          </div>
+        </header>
+        <div class="board-wrap">
+          <canvas id="gameCanvas" width="720" height="960" aria-label="Game board"></canvas>
+          <div class="winner" id="winnerPanel" hidden>
+            <strong id="winnerText">Red wins</strong>
+            <button id="playAgainButton" type="button">Play Again</button>
+            <button id="homeButton" type="button">Home</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
