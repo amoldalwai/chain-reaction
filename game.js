@@ -162,6 +162,7 @@ function getCellFromPointer(event) {
 }
 
 function handleCanvasClick(event) {
+  unlockAudio();
   if (state.animating || state.gameOver) return;
   const target = getCellFromPointer(event);
   if (!target) return;
@@ -543,23 +544,49 @@ function lerp(a, b, t) {
 
 function playTone(frequency, duration, type, gainValue) {
   try {
-    state.audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = state.audioCtx.createOscillator();
-    const gain = state.audioCtx.createGain();
-    oscillator.type = type;
-    oscillator.frequency.value = frequency;
-    gain.gain.value = gainValue;
-    gain.gain.exponentialRampToValueAtTime(0.0001, state.audioCtx.currentTime + duration);
-    oscillator.connect(gain);
-    gain.connect(state.audioCtx.destination);
-    oscillator.start();
-    oscillator.stop(state.audioCtx.currentTime + duration);
+    const audioCtx = unlockAudio();
+    if (!audioCtx) return;
+    const startTone = () => {
+      const oscillator = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      oscillator.type = type;
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(gainValue, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      oscillator.connect(gain);
+      gain.connect(audioCtx.destination);
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + duration);
+    };
+
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().then(startTone).catch(() => {});
+      return;
+    }
+
+    startTone();
   } catch {
     return;
   }
 }
 
+function unlockAudio() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    state.audioCtx ||= new AudioContextClass();
+    if (state.audioCtx.state === "suspended") {
+      state.audioCtx.resume();
+    }
+    return state.audioCtx;
+  } catch {
+    return null;
+  }
+}
+
+canvas.addEventListener("pointerdown", unlockAudio, { passive: true });
 canvas.addEventListener("click", handleCanvasClick);
+playButton.addEventListener("pointerdown", unlockAudio, { passive: true });
 playButton.addEventListener("click", startGame);
 playAgainButton.addEventListener("click", resetGame);
 homeButton.addEventListener("click", showHome);
