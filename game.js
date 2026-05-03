@@ -5,6 +5,9 @@ const gameScreen = document.querySelector("#gameScreen");
 const fillRange = document.querySelector("#fillRange");
 const fillValue = document.querySelector("#fillValue");
 const playButton = document.querySelector("#playButton");
+const playModeInputs = document.querySelectorAll("input[name='playMode']");
+const difficultyInputs = document.querySelectorAll("input[name='difficulty']");
+const difficultyGroup = document.querySelector("#difficultyGroup");
 const gridStyleInputs = document.querySelectorAll("input[name='gridStyle']");
 const themeInputs = document.querySelectorAll("input[name='theme']");
 const redPercent = document.querySelector("#redPercent");
@@ -43,6 +46,9 @@ const state = {
   masterGain: null,
   gridStyle: "3d",
   theme: "dark",
+  playMode: "human",
+  difficulty: "medium",
+  cpuTimer: 0,
 };
 
 function createCells() {
@@ -60,6 +66,7 @@ function resetGame() {
   state.cells = createCells();
   state.particles = [];
   state.moving = [];
+  clearTimeout(state.cpuTimer);
   state.animating = false;
   state.gameOver = false;
   state.started = false;
@@ -80,12 +87,16 @@ function startGame() {
 }
 
 function applySetupOptions() {
+  state.playMode = document.querySelector("input[name='playMode']:checked")?.value || "human";
+  state.difficulty = document.querySelector("input[name='difficulty']:checked")?.value || "medium";
   state.gridStyle = document.querySelector("input[name='gridStyle']:checked")?.value || "3d";
   state.theme = document.querySelector("input[name='theme']:checked")?.value || "dark";
+  difficultyGroup.classList.toggle("is-muted", state.playMode !== "cpu");
   document.body.classList.toggle("theme-white", state.theme === "white");
 }
 
 function showHome() {
+  clearTimeout(state.cpuTimer);
   gameScreen.hidden = true;
   homeScreen.hidden = false;
   winnerPanel.hidden = true;
@@ -178,6 +189,7 @@ function handleBoardPointer(event) {
   event.preventDefault();
   unlockAudio();
   if (state.animating || state.gameOver) return;
+  if (isCpuTurn()) return;
   const target = getCellFromPointer(event);
   if (!target) return;
   const cell = state.cells[target.row][target.col];
@@ -299,6 +311,7 @@ function endTurn() {
 
   advancePlayer();
   updateHud();
+  queueCpuMove();
 }
 
 function advancePlayer() {
@@ -322,6 +335,215 @@ function findWinner() {
     if (isPlayerAlive(player)) alive.push(player);
   }
   return alive.length === 1 ? alive[0] : -1;
+}
+
+function isCpuTurn() {
+  return state.playMode === "cpu" && state.currentPlayer === 1 && !state.gameOver;
+}
+
+function queueCpuMove() {
+  clearTimeout(state.cpuTimer);
+  if (!isCpuTurn() || state.animating) return;
+  state.cpuTimer = setTimeout(makeCpuMove, 520);
+}
+
+function makeCpuMove() {
+  if (!isCpuTurn() || state.animating || state.gameOver) return;
+  const move = chooseCpuMove();
+  if (!move) return;
+
+  addOrb(move.col, move.row, 1);
+  state.turnNumber++;
+  playClickSound(1);
+  resolveChain();
+}
+
+function chooseCpuMove() {
+  const moves = getValidMoves(1);
+  if (moves.length === 0) return null;
+  if (state.difficulty === "low") return randomItem(moves);
+
+  const scored = moves.map((move) => ({
+    ...move,
+    score: state.difficulty === "high" ? scoreHardCpuMove(move) : scoreCpuMove(move),
+  }));
+  scored.sort((a, b) => b.score - a.score);
+
+  if (state.difficulty === "medium" && Math.random() < 0.35) {
+    return randomItem(scored.slice(0, Math.min(4, scored.length)));
+  }
+
+  return scored[0];
+}
+
+function getValidMoves(player) {
+  const moves = [];
+  for (let row = 0; row < state.rows; row++) {
+    for (let col = 0; col < state.cols; col++) {
+      const cell = state.cells[row][col];
+      if (cell.owner === -1 || cell.owner === player) moves.push({ col, row });
+    }
+  }
+  return moves;
+}
+
+function scoreCpuMove(move) {
+  const cell = state.cells[move.row][move.col];
+  const mass = criticalMass(move.col, move.row);
+  let score = Math.random() * 0.2;
+
+  if (cell.owner === 1) score += 1.4 + cell.count * 0.55;
+  if (cell.owner === -1) score += 0.55;
+  if (cell.count + 1 >= mass) score += 4.8;
+
+  for (const neighbor of getNeighbors(move.col, move.row)) {
+    const neighborCell = state.cells[neighbor.row][neighbor.col];
+    const neighborMass = criticalMass(neighbor.col, neighbor.row);
+    if (neighborCell.owner === 0) {
+      score += 0.75 + neighborCell.count * 0.35;
+      if (cell.count + 1 >= mass) score += 1.2;
+    }
+    if (neighborCell.owner === 1 && neighborCell.count === neighborMass - 1) {
+      score += 0.7;
+    }
+    if (neighborCell.owner === 0 && neighborCell.count === neighborMass - 1) {
+      score -= state.difficulty === "high" ? 1.6 : 0.7;
+    }
+  }
+
+  if (state.difficulty === "high") {
+    score += simulateMoveScore(move.col, move.row, 1) * 0.55;
+  }
+
+  return score;
+}
+
+function scoreHardCpuMove(move) {
+  const afterCpu = simulateBoardAfterMove(state.cells, move.col, move.row, 1);
+  let score = evaluateBoard(afterCpu, 1);
+  score += afterCpu.bursts * 2.1;
+  score += countCapturedCells(state.cells, afterCpu.board, 1) * 1.2;
+
+  const redReplies = getValidMovesForBoard(afterCpu.board, 0);
+  let bestRedReply = -Infinity;
+  for (const reply of redReplies) {
+    const afterRed = simulateBoardAfterMove(afterCpu.board, reply.col, reply.row, 0);
+    const replyScore = evaluateBoard(afterRed, 0) + afterRed.bursts * 2.2 + countCapturedCells(afterCpu.board, afterRed.board, 0) * 1.4;
+    bestRedReply = Math.max(bestRedReply, replyScore);
+  }
+
+  if (bestRedReply > -Infinity) score -= bestRedReply * 0.82;
+  score += scoreImmediateThreats(afterCpu.board, 1) * 1.1;
+  score -= scoreImmediateThreats(afterCpu.board, 0) * 1.35;
+  return score;
+}
+
+function simulateMoveScore(col, row, owner) {
+  const result = simulateBoardAfterMove(state.cells, col, row, owner);
+  return evaluateBoard(result, owner) + result.bursts * 1.4;
+}
+
+function simulateBoardAfterMove(board, col, row, owner) {
+  const clone = board.map((line) => line.map((cell) => ({ ...cell })));
+  const queue = [];
+  clone[row][col].owner = owner;
+  clone[row][col].count++;
+  if (clone[row][col].count >= criticalMass(col, row)) queue.push({ col, row });
+
+  let bursts = 0;
+  while (queue.length && bursts < 40) {
+    const current = queue.shift();
+    const cell = clone[current.row][current.col];
+    if (cell.owner === -1 || cell.count < criticalMass(current.col, current.row)) continue;
+    const burstOwner = cell.owner;
+    cell.owner = -1;
+    cell.count = 0;
+    bursts++;
+
+    for (const neighbor of getNeighbors(current.col, current.row)) {
+      const nextCell = clone[neighbor.row][neighbor.col];
+      nextCell.owner = burstOwner;
+      nextCell.count++;
+      if (nextCell.count >= criticalMass(neighbor.col, neighbor.row)) queue.push(neighbor);
+    }
+  }
+
+  return { board: clone, bursts };
+}
+
+function evaluateBoard(resultOrBoard, owner) {
+  const board = Array.isArray(resultOrBoard) ? resultOrBoard : resultOrBoard.board;
+  const opponent = owner === 1 ? 0 : 1;
+  let score = 0;
+  for (let row = 0; row < state.rows; row++) {
+    const line = board[row];
+    for (let col = 0; col < state.cols; col++) {
+      const cell = line[col];
+      const mass = criticalMass(col, row);
+      if (cell.owner === owner) {
+        score += 1 + cell.count * 0.42;
+        if (cell.count === mass - 1) score += 1.8;
+      }
+      if (cell.owner === opponent) {
+        score -= 1 + cell.count * 0.4;
+        if (cell.count === mass - 1) score -= 1.5;
+      }
+    }
+  }
+  return score;
+}
+
+function getValidMovesForBoard(board, player) {
+  const moves = [];
+  for (let row = 0; row < state.rows; row++) {
+    for (let col = 0; col < state.cols; col++) {
+      const cell = board[row][col];
+      if (cell.owner === -1 || cell.owner === player) moves.push({ col, row });
+    }
+  }
+  return moves;
+}
+
+function countCapturedCells(before, after, owner) {
+  let captured = 0;
+  for (let row = 0; row < state.rows; row++) {
+    for (let col = 0; col < state.cols; col++) {
+      if (before[row][col].owner !== owner && after[row][col].owner === owner) captured++;
+    }
+  }
+  return captured;
+}
+
+function scoreImmediateThreats(board, owner) {
+  let score = 0;
+  for (let row = 0; row < state.rows; row++) {
+    for (let col = 0; col < state.cols; col++) {
+      const cell = board[row][col];
+      if (cell.owner !== owner) continue;
+      const mass = criticalMass(col, row);
+      if (cell.count === mass - 1) {
+        score += 2;
+        for (const neighbor of getNeighbors(col, row)) {
+          const neighborCell = board[neighbor.row][neighbor.col];
+          if (neighborCell.owner !== -1 && neighborCell.owner !== owner) score += 0.8 + neighborCell.count * 0.25;
+        }
+      }
+    }
+  }
+  return score;
+}
+
+function getNeighbors(col, row) {
+  return [
+    { col: col + 1, row },
+    { col: col - 1, row },
+    { col, row: row + 1 },
+    { col, row: row - 1 },
+  ].filter((item) => item.col >= 0 && item.col < state.cols && item.row >= 0 && item.row < state.rows);
+}
+
+function randomItem(items) {
+  return items[Math.floor(Math.random() * items.length)];
 }
 
 function updateHud() {
@@ -576,20 +798,20 @@ function lerp(a, b, t) {
 
 function playClickSound(player) {
   if (player === 0) {
-    playTone(300, 0.065, "square", 0.18);
-    playTone(180, 0.045, "triangle", 0.09, 0.012);
+    playTone(280, 0.09, "sine", 0.12);
+    playTone(420, 0.07, "triangle", 0.05, 0.018);
     return;
   }
 
-  playTone(620, 0.055, "triangle", 0.17);
-  playTone(930, 0.035, "sine", 0.08, 0.012);
+  playTone(470, 0.085, "sine", 0.11);
+  playTone(705, 0.065, "triangle", 0.05, 0.018);
 }
 
 function playBurstSound(neighborCount) {
-  const base = 190 + neighborCount * 38;
-  playTone(base, 0.09, "sawtooth", 0.18);
-  playTone(base * 1.55, 0.07, "triangle", 0.12, 0.018);
-  playNoise(0.075, 0.1);
+  const base = 210 + neighborCount * 28;
+  playTone(base, 0.16, "sine", 0.13);
+  playTone(base * 1.34, 0.13, "triangle", 0.075, 0.028);
+  playTone(base * 0.72, 0.18, "sine", 0.05, 0.012);
 }
 
 function playWinSound(winner) {
@@ -611,7 +833,7 @@ function playTone(frequency, duration, type, gainValue, delay = 0) {
       oscillator.type = type;
       oscillator.frequency.value = frequency;
       gain.gain.setValueAtTime(0.0001, startAt);
-      gain.gain.exponentialRampToValueAtTime(gainValue, startAt + 0.008);
+      gain.gain.exponentialRampToValueAtTime(gainValue, startAt + 0.018);
       gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
       oscillator.connect(gain);
       gain.connect(state.masterGain);
@@ -630,39 +852,6 @@ function playTone(frequency, duration, type, gainValue, delay = 0) {
   }
 }
 
-function playNoise(duration, gainValue) {
-  try {
-    const audioCtx = unlockAudio();
-    if (!audioCtx) return;
-    const startNoise = () => {
-      const sampleCount = Math.max(1, Math.floor(audioCtx.sampleRate * duration));
-      const buffer = audioCtx.createBuffer(1, sampleCount, audioCtx.sampleRate);
-      const samples = buffer.getChannelData(0);
-      for (let index = 0; index < sampleCount; index++) {
-        samples[index] = (Math.random() * 2 - 1) * (1 - index / sampleCount);
-      }
-
-      const source = audioCtx.createBufferSource();
-      const gain = audioCtx.createGain();
-      source.buffer = buffer;
-      gain.gain.setValueAtTime(gainValue, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-      source.connect(gain);
-      gain.connect(state.masterGain);
-      source.start();
-    };
-
-    if (audioCtx.state === "suspended") {
-      audioCtx.resume().then(startNoise).catch(() => {});
-      return;
-    }
-
-    startNoise();
-  } catch {
-    return;
-  }
-}
-
 function unlockAudio() {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -670,7 +859,7 @@ function unlockAudio() {
     state.audioCtx ||= new AudioContextClass();
     if (!state.masterGain) {
       state.masterGain = state.audioCtx.createGain();
-      state.masterGain.gain.value = 0.82;
+      state.masterGain.gain.value = 0.72;
       state.masterGain.connect(state.audioCtx.destination);
     }
     if (state.audioCtx.state === "suspended") {
@@ -691,6 +880,8 @@ homeButton.addEventListener("click", showHome);
 fillRange.addEventListener("input", () => {
   fillValue.textContent = `${fillRange.value}%`;
 });
+playModeInputs.forEach((input) => input.addEventListener("change", applySetupOptions));
+difficultyInputs.forEach((input) => input.addEventListener("change", applySetupOptions));
 gridStyleInputs.forEach((input) => input.addEventListener("change", applySetupOptions));
 themeInputs.forEach((input) => input.addEventListener("change", applySetupOptions));
 window.addEventListener("resize", resizeCanvas);

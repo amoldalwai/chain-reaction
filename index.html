@@ -21,6 +21,32 @@
             <input id="fillRange" type="range" min="0" max="80" step="5" value="25" />
           </label>
           <fieldset class="option-group">
+            <legend>Play Mode</legend>
+            <label>
+              <input type="radio" name="playMode" value="human" checked />
+              <span>2 Player</span>
+            </label>
+            <label>
+              <input type="radio" name="playMode" value="cpu" />
+              <span>CPU</span>
+            </label>
+          </fieldset>
+          <fieldset class="option-group difficulty-group" id="difficultyGroup">
+            <legend>Difficulty</legend>
+            <label>
+              <input type="radio" name="difficulty" value="low" />
+              <span>Low</span>
+            </label>
+            <label>
+              <input type="radio" name="difficulty" value="medium" checked />
+              <span>Medium</span>
+            </label>
+            <label>
+              <input type="radio" name="difficulty" value="high" />
+              <span>High</span>
+            </label>
+          </fieldset>
+          <fieldset class="option-group">
             <legend>Grid Style</legend>
             <label>
               <input type="radio" name="gridStyle" value="3d" checked />
