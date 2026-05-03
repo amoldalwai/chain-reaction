@@ -161,7 +161,8 @@ function getCellFromPointer(event) {
   return { col, row };
 }
 
-function handleCanvasClick(event) {
+function handleBoardPointer(event) {
+  event.preventDefault();
   unlockAudio();
   if (state.animating || state.gameOver) return;
   const target = getCellFromPointer(event);
@@ -584,8 +585,8 @@ function unlockAudio() {
   }
 }
 
-canvas.addEventListener("pointerdown", unlockAudio, { passive: true });
-canvas.addEventListener("click", handleCanvasClick);
+canvas.addEventListener("pointerdown", handleBoardPointer);
+canvas.addEventListener("touchstart", (event) => event.preventDefault(), { passive: false });
 playButton.addEventListener("pointerdown", unlockAudio, { passive: true });
 playButton.addEventListener("click", startGame);
 playAgainButton.addEventListener("click", resetGame);
