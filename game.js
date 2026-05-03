@@ -5,6 +5,8 @@ const gameScreen = document.querySelector("#gameScreen");
 const fillRange = document.querySelector("#fillRange");
 const fillValue = document.querySelector("#fillValue");
 const playButton = document.querySelector("#playButton");
+const gridStyleInputs = document.querySelectorAll("input[name='gridStyle']");
+const themeInputs = document.querySelectorAll("input[name='theme']");
 const redPercent = document.querySelector("#redPercent");
 const greenPercent = document.querySelector("#greenPercent");
 const redBar = document.querySelector("#redBar");
@@ -38,6 +40,9 @@ const state = {
   pulse: 0,
   lastTime: 0,
   audioCtx: null,
+  masterGain: null,
+  gridStyle: "3d",
+  theme: "dark",
 };
 
 function createCells() {
@@ -47,6 +52,7 @@ function createCells() {
 }
 
 function resetGame() {
+  applySetupOptions();
   state.cols = 6;
   state.rows = 9;
   state.playerCount = 2;
@@ -66,10 +72,17 @@ function resetGame() {
 }
 
 function startGame() {
+  applySetupOptions();
   homeScreen.hidden = true;
   gameScreen.hidden = false;
   resetGame();
   requestAnimationFrame(resizeCanvas);
+}
+
+function applySetupOptions() {
+  state.gridStyle = document.querySelector("input[name='gridStyle']:checked")?.value || "3d";
+  state.theme = document.querySelector("input[name='theme']:checked")?.value || "dark";
+  document.body.classList.toggle("theme-white", state.theme === "white");
 }
 
 function showHome() {
@@ -173,7 +186,7 @@ function handleBoardPointer(event) {
   state.started = true;
   addOrb(target.col, target.row, state.currentPlayer);
   state.turnNumber++;
-  playTone(180 + state.currentPlayer * 90, 0.045, "sine", 0.055);
+  playClickSound(state.currentPlayer);
   resolveChain();
 }
 
@@ -223,7 +236,7 @@ function processExplosions(queue) {
     cell.exploding = 0.38;
     state.shake = Math.min(8, state.shake + 1.4);
     makeSparks(start.x, start.y, color, neighbors.length * 6);
-    playTone(260 + neighbors.length * 60, 0.035, "triangle", 0.035);
+    playBurstSound(neighbors.length);
 
     for (const neighbor of neighbors) {
       const end = cellCenter(neighbor.col, neighbor.row, metrics);
@@ -279,7 +292,7 @@ function endTurn() {
     winnerText.textContent = `${PLAYERS[winner].name} wins`;
     winnerText.style.color = PLAYERS[winner].color;
     winnerPanel.hidden = false;
-    playTone(500 + winner * 80, 0.18, "sawtooth", 0.04);
+    playWinSound(winner);
     updateHud();
     return;
   }
@@ -380,6 +393,22 @@ function updateMotion(dt) {
 }
 
 function drawBackground(metrics) {
+  if (state.theme === "white") {
+    const gradient = ctx.createRadialGradient(
+      metrics.rect.width * 0.5,
+      metrics.rect.height * 0.3,
+      0,
+      metrics.rect.width * 0.5,
+      metrics.rect.height * 0.46,
+      metrics.rect.height * 0.85
+    );
+    gradient.addColorStop(0, "#ffffff");
+    gradient.addColorStop(1, "#dcebe0");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, metrics.rect.width, metrics.rect.height);
+    return;
+  }
+
   const gradient = ctx.createRadialGradient(
     metrics.rect.width * 0.5,
     metrics.rect.height * 0.35,
@@ -397,13 +426,14 @@ function drawBackground(metrics) {
 function drawGrid(metrics) {
   const depth = metrics.cell * 0.28;
   ctx.lineWidth = 1;
-  ctx.strokeStyle = "rgba(40, 230, 84, 0.55)";
-  ctx.shadowColor = "rgba(39, 255, 91, 0.45)";
-  ctx.shadowBlur = 6;
+  ctx.strokeStyle = state.theme === "white" ? "rgba(9, 118, 35, 0.58)" : "rgba(40, 230, 84, 0.55)";
+  ctx.shadowColor = state.theme === "white" ? "rgba(9, 118, 35, 0.24)" : "rgba(39, 255, 91, 0.45)";
+  ctx.shadowBlur = state.gridStyle === "2d" ? 2 : 6;
 
   for (let row = 0; row <= state.rows; row++) {
     const y = metrics.y + row * metrics.cell;
     line(metrics.x, y, metrics.x + metrics.w, y);
+    if (state.gridStyle === "2d") continue;
     line(metrics.x + depth, y - depth, metrics.x + metrics.w + depth, y - depth);
     line(metrics.x, y, metrics.x + depth, y - depth);
     line(metrics.x + metrics.w, y, metrics.x + metrics.w + depth, y - depth);
@@ -412,6 +442,7 @@ function drawGrid(metrics) {
   for (let col = 0; col <= state.cols; col++) {
     const x = metrics.x + col * metrics.cell;
     line(x, metrics.y, x, metrics.y + metrics.h);
+    if (state.gridStyle === "2d") continue;
     line(x + depth, metrics.y - depth, x + depth, metrics.y + metrics.h - depth);
     line(x, metrics.y, x + depth, metrics.y - depth);
     line(x, metrics.y + metrics.h, x + depth, metrics.y + metrics.h - depth);
@@ -543,21 +574,49 @@ function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
-function playTone(frequency, duration, type, gainValue) {
+function playClickSound(player) {
+  if (player === 0) {
+    playTone(300, 0.065, "square", 0.18);
+    playTone(180, 0.045, "triangle", 0.09, 0.012);
+    return;
+  }
+
+  playTone(620, 0.055, "triangle", 0.17);
+  playTone(930, 0.035, "sine", 0.08, 0.012);
+}
+
+function playBurstSound(neighborCount) {
+  const base = 190 + neighborCount * 38;
+  playTone(base, 0.09, "sawtooth", 0.18);
+  playTone(base * 1.55, 0.07, "triangle", 0.12, 0.018);
+  playNoise(0.075, 0.1);
+}
+
+function playWinSound(winner) {
+  const start = winner === 0 ? 440 : 520;
+  [0, 0.1, 0.2, 0.34].forEach((delay, index) => {
+    playTone(start * [1, 1.25, 1.5, 2][index], 0.16, "triangle", 0.16, delay);
+  });
+  playTone(start / 2, 0.42, "sine", 0.11, 0.04);
+}
+
+function playTone(frequency, duration, type, gainValue, delay = 0) {
   try {
     const audioCtx = unlockAudio();
     if (!audioCtx) return;
     const startTone = () => {
       const oscillator = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
+      const startAt = audioCtx.currentTime + delay;
       oscillator.type = type;
       oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(gainValue, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      gain.gain.setValueAtTime(0.0001, startAt);
+      gain.gain.exponentialRampToValueAtTime(gainValue, startAt + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
       oscillator.connect(gain);
-      gain.connect(audioCtx.destination);
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + duration);
+      gain.connect(state.masterGain);
+      oscillator.start(startAt);
+      oscillator.stop(startAt + duration + 0.02);
     };
 
     if (audioCtx.state === "suspended") {
@@ -571,11 +630,49 @@ function playTone(frequency, duration, type, gainValue) {
   }
 }
 
+function playNoise(duration, gainValue) {
+  try {
+    const audioCtx = unlockAudio();
+    if (!audioCtx) return;
+    const startNoise = () => {
+      const sampleCount = Math.max(1, Math.floor(audioCtx.sampleRate * duration));
+      const buffer = audioCtx.createBuffer(1, sampleCount, audioCtx.sampleRate);
+      const samples = buffer.getChannelData(0);
+      for (let index = 0; index < sampleCount; index++) {
+        samples[index] = (Math.random() * 2 - 1) * (1 - index / sampleCount);
+      }
+
+      const source = audioCtx.createBufferSource();
+      const gain = audioCtx.createGain();
+      source.buffer = buffer;
+      gain.gain.setValueAtTime(gainValue, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+      source.connect(gain);
+      gain.connect(state.masterGain);
+      source.start();
+    };
+
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().then(startNoise).catch(() => {});
+      return;
+    }
+
+    startNoise();
+  } catch {
+    return;
+  }
+}
+
 function unlockAudio() {
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return null;
     state.audioCtx ||= new AudioContextClass();
+    if (!state.masterGain) {
+      state.masterGain = state.audioCtx.createGain();
+      state.masterGain.gain.value = 0.82;
+      state.masterGain.connect(state.audioCtx.destination);
+    }
     if (state.audioCtx.state === "suspended") {
       state.audioCtx.resume();
     }
@@ -594,9 +691,12 @@ homeButton.addEventListener("click", showHome);
 fillRange.addEventListener("input", () => {
   fillValue.textContent = `${fillRange.value}%`;
 });
+gridStyleInputs.forEach((input) => input.addEventListener("change", applySetupOptions));
+themeInputs.forEach((input) => input.addEventListener("change", applySetupOptions));
 window.addEventListener("resize", resizeCanvas);
 
 fillValue.textContent = `${fillRange.value}%`;
+applySetupOptions();
 state.cells = createCells();
 updateHud();
 requestAnimationFrame(draw);

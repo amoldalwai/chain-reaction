@@ -133,6 +133,46 @@ h1 {
   accent-color: var(--line-bright);
 }
 
+.option-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.option-group legend {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.option-group label {
+  position: relative;
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(83, 210, 105, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.option-group input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.option-group label:has(input:checked) {
+  border-color: rgba(41, 230, 84, 0.85);
+  background: rgba(41, 230, 84, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(41, 230, 84, 0.22);
+}
+
 .play-button,
 .winner button {
   min-height: 48px;
@@ -169,6 +209,39 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(8, 12, 10, 0.74);
+}
+
+body.theme-white {
+  --text: #0c120e;
+  --muted: #405449;
+  background: linear-gradient(180deg, #f7fff8 0%, #dfeee3 100%);
+}
+
+body.theme-white .home-panel {
+  border-color: rgba(16, 111, 39, 0.28);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24px 70px rgba(37, 75, 48, 0.18);
+}
+
+body.theme-white .play-button,
+body.theme-white .winner button {
+  color: #f7fff8;
+  background: #176129;
+}
+
+body.theme-white .game-hud {
+  background: rgba(248, 255, 250, 0.94);
+  border-color: rgba(16, 111, 39, 0.16);
+}
+
+body.theme-white .board-wrap {
+  background: #f8fff9;
+}
+
+body.theme-white .balance-track {
+  background:
+    linear-gradient(90deg, rgba(255, 21, 21, 0.16), rgba(20, 45, 27, 0.1) 50%, rgba(36, 245, 47, 0.18)),
+    rgba(18, 48, 26, 0.12);
 }
 
 .hud-top {
@@ -363,6 +436,10 @@ canvas {
     border: 0;
     border-radius: 0;
     background: rgba(5, 8, 6, 0.92);
+  }
+
+  body.theme-white .game-hud {
+    background: rgba(248, 255, 250, 0.96);
   }
 
   .hud-top {
